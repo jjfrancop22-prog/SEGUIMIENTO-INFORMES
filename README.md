@@ -1,4 +1,4 @@
-# PEP V5.0.0-A1.1 — Baseline & Outbox Reconciliation Fix
+# PEP V5.0.0-A1.2 — Live Sync Auto-Start Fix
 
 Versión de producción GitHub + Netlify/PWA.
 

@@ -283,7 +283,12 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   await outboxInspector.init();await conflictReviewCenter.init();
   syncFoundationUI.onBootstrap=async()=>{await refresh();if(securityManager.sessions.isAuthenticated())await liveSyncManager.activateAll({manual:false});await refresh()};
   await financialSecurity.init();await refresh();clearForm();
-  await liveSyncManager.restoreConfigured().catch(e=>toast(`Live Sync: ${e.message||e}`,true));
+  // V5.0.0-A1.2 — New Client Live Sync Auto-Start Fix:
+  // después de Login + reconciliación, una PC/navegador nuevo no debe depender
+  // de preferencias antiguas de localStorage. Activa automáticamente todos los
+  // dominios que el rol autenticado puede leer; activateAll() persiste luego
+  // esas preferencias para futuras restauraciones de sesión.
+  await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));
   await globalSyncHealthUI?.refresh?.().catch(()=>{});
   permissionEnforcement.apply();
   performanceCoordinator.end(perfToken);performanceCoordinator.renderPanel();
@@ -301,7 +306,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V5.0.0-A1.1 listo · Baseline & Outbox Reconciliation');
+    if(status.sessionUnlocked)toast('PEP V5.0.0-A1.2 listo · Live Sync Auto-Start');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';

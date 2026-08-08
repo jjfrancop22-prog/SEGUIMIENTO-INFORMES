@@ -1,4 +1,4 @@
-const CACHE_NAME='pep-enterprise-static-v500a11';
+const CACHE_NAME='pep-enterprise-static-v500a12';
 const STATIC_ASSETS=['/manifest.webmanifest','/icons/pep-192.png','/icons/pep-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(STATIC_ASSETS)).catch(()=>{}));
