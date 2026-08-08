@@ -37,6 +37,7 @@ import {performanceCoordinator} from './core/performance-coordinator.js';
 import {NewPcAutoBootstrap} from './modules/new-pc-auto-bootstrap.js';
 import {CloudReconciliationManager} from './modules/cloud-reconciliation-manager.js';
 import {SyncResilienceManager} from './sync/sync-resilience-manager.js';
+import {initEnterpriseTableTools} from './core/enterprise-table-tools.js';
 
 const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);const cloudReconciliationManager=new CloudReconciliationManager(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let syncResilienceManager=null;let permissionEnforcement=null;
@@ -301,6 +302,8 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
 async function lockAuthenticatedERP(){
   if(liveSyncManager)await liveSyncManager.stopAll({manual:false}).catch(()=>{});
 }
+
+initEnterpriseTableTools();
 
 const startupManager=new StartupManager({
   openDatabase:openDB,
