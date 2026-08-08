@@ -34,9 +34,10 @@ import {dynamicPermissionUI} from './modules/dynamic-permission-ui.js';
 import {EnterpriseSessionGate} from './security/enterprise-session-gate.js';
 import {StartupManager} from './core/startup-manager.js';
 import {performanceCoordinator} from './core/performance-coordinator.js';
+import {NewPcAutoBootstrap} from './modules/new-pc-auto-bootstrap.js';
 
 const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);let liveSyncManager=null;let globalSyncHealthUI=null;let permissionEnforcement=null;
+let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let permissionEnforcement=null;
 function toast(msg,error=false){const el=$('toast');el.textContent=msg;el.className=`toast show${error?' error':''}`;clearTimeout(toast.t);toast.t=setTimeout(()=>el.className='toast',2800)}
 function showError(msg=''){const el=$('formError');el.textContent=msg;el.classList.toggle('show',!!msg)}
 function showModule(moduleId){document.querySelectorAll('.module-tab').forEach(x=>x.classList.toggle('active',x.dataset.module===moduleId));document.querySelectorAll('.subnav').forEach(x=>x.classList.toggle('active',x.dataset.subnav===moduleId))}
@@ -269,6 +270,12 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
 
   liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh()}});
   await liveSyncManager.init({restore:false});
+
+  // V4.9.0 — New PC Auto Bootstrap: en una PC vacía, Firebase hidrata IndexedDB una sola vez antes del primer Dashboard.
+  newPcAutoBootstrap.bindRetry(async r=>{if(r?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(()=>{});}});
+  const autoBootstrap=await newPcAutoBootstrap.runIfNeeded();
+  if(autoBootstrap?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));}
+
   globalSyncHealthUI=new GlobalSyncHealthUI(syncManager,{liveController:liveSyncManager});await globalSyncHealthUI.init();
   await outboxInspector.init();await conflictReviewCenter.init();
   syncFoundationUI.onBootstrap=async()=>{await refresh();if(securityManager.sessions.isAuthenticated())await liveSyncManager.activateAll({manual:false});await refresh()};
@@ -290,7 +297,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V4.8.0-C listo · Performance Optimization');
+    if(status.sessionUnlocked)toast('PEP V4.9.0 listo · New PC Auto Bootstrap');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';

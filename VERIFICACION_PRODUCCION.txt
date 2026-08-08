@@ -1,5 +1,7 @@
-PEP Enterprise V4.8.0-C
-GitHub Production definitiva
-index.html está en la raíz.
-Firebase Web App dqo-informes está preconfigurada.
-No contiene cambios D1/D2/D3.
+PEP Enterprise V4.9.0
+Build: NEW_PC_AUTO_BOOTSTRAP
+Base estable: V4.8.0-C
+index.html en raíz: SI
+Firebase Production Config integrada: SI
+New PC Auto Bootstrap: ACTIVO
+Dominios: SAMPLES, LABORATORY, REPORTS, BILLING, RECEIVABLES, CLIENTS, CATALOGS (según permisos)
