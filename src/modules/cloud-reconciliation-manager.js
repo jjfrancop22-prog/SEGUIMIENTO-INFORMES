@@ -56,9 +56,46 @@ export class CloudReconciliationManager{
   }
   async localCounts(){const out={};for(const d of SYNC_DOMAINS)out[d.id]=(await getAll(STORES[d.store])).length;return out}
   async pendingProtection(){
-    const rows=(await outboxRepository.all()).filter(x=>x.status==='PENDING'||x.status==='ERROR');
+    const rows=(await outboxRepository.all()).filter(x=>['PENDING','ERROR'].includes(String(x.status||'').toUpperCase()));
     const ids=new Set(rows.map(x=>key(x.domain,x.entityId)));
     return {rows,ids,count:rows.length};
+  }
+  async reconcileHistoricalOutbox(allowed){
+    const before=await this.pendingProtection();
+    if(!before.count)return {...before,confirmedHistorical:0};
+    const allowedSet=new Set(allowed.map(x=>x.id));
+    const grouped=new Map();
+    for(const row of before.rows){
+      const domain=String(row.domain||'').toUpperCase();
+      if(!allowedSet.has(domain))continue;
+      if(!grouped.has(domain))grouped.set(domain,[]);
+      grouped.get(domain).push(row);
+    }
+    let confirmedHistorical=0;
+    for(const [domain,pendingRows] of grouped){
+      const cfg=allowed.find(x=>x.id===domain);if(!cfg)continue;
+      this.row(domain,cfg.label||domain,'RUN',`Validando ${pendingRows.length} operación(es) pendientes…`);
+      let snapshot;
+      try{snapshot=await this.fetchSnapshot(domain,{batchSize:300})}catch{continue}
+      const cloudMap=new Map(snapshot.rows.map(x=>[String(x.id||''),x]));
+      for(const item of pendingRows){
+        const id=String(item.entityId||item.payload?.id||'');if(!id)continue;
+        const cloud=cloudMap.get(id);if(!cloud)continue;
+        const localRevision=Number(item.revision||item.payload?.revision||0);
+        const cloudRevision=rev(cloud);
+        const localStamp=String(item.payload?.updatedAt||item.updatedAt||item.createdAt||'');
+        const cloudStamp=stamp(cloud);
+        // Una entrada antigua del Outbox se considera ya confirmada únicamente si
+        // Firebase contiene la misma revisión (o una superior) y no es más antigua
+        // que el cambio local. Las revisiones realmente nuevas permanecen protegidas.
+        const confirmed=cloudRevision>localRevision||(cloudRevision===localRevision&&cloudStamp&&localStamp&&cloudStamp>=localStamp);
+        if(!confirmed)continue;
+        await outboxRepository.ackAndCleanup(item.id,{result:'ACK_SUPERSEDED',detail:'CLOUD_ALREADY_CONFIRMED'});
+        confirmedHistorical++;
+      }
+    }
+    const after=await this.pendingProtection();
+    return {...after,confirmedHistorical};
   }
   async fetchSnapshot(domain,{batchSize=250,onProgress=()=>{}}={}){
     const expected=await this.adapter.countEntities(domain),rows=[];let afterId=null;
@@ -132,7 +169,7 @@ export class CloudReconciliationManager{
       if(!manifest||manifest.status!=='COMPLETE')throw new Error('Firebase no contiene un Initial Cloud Seed COMPLETE.');
       const allowed=SYNC_DOMAINS.filter(d=>canReadCloudDomain(d.id));
       if(!allowed.length)throw new Error('El rol autenticado no tiene dominios autorizados para sincronización.');
-      const protection=await this.pendingProtection(),counts=await this.localCounts();
+      const protection=await this.reconcileHistoricalOutbox(allowed),counts=await this.localCounts();
       const coreTotal=CORE_DOMAINS.reduce((sum,id)=>sum+Number(counts[id]||0),0);
       let mode='RECONCILE',results=[];
       if(coreTotal===0){
@@ -144,7 +181,8 @@ export class CloudReconciliationManager{
         }});
         results=allowed.map(d=>({domain:d.id,remote:boot.remoteCounts?.[d.id]||0,local:boot.localCounts?.[d.id]||0,exact:true,protected:0}));
       }else{
-        this.progress(6,protection.count?`Reconciliando con Firebase · ${protection.count} cambio(s) local(es) protegidos.`:'Reconciliando datos locales con Firebase…');
+        const hist=Number(protection.confirmedHistorical||0);
+        this.progress(6,protection.count?`Reconciliando con Firebase · ${protection.count} cambio(s) local(es) reales protegidos${hist?` · ${hist} histórico(s) confirmado(s)`:''}.`:hist?`Reconciliando datos locales con Firebase · ${hist} entrada(s) histórica(s) de Outbox ya confirmadas.`:'Reconciliando datos locales con Firebase…');
         results=await this.reconcileExisting(allowed,protection);
       }
       const completedAt=nowIso();
@@ -152,7 +190,7 @@ export class CloudReconciliationManager{
       await auditRepository.record({action:'CLOUD_RECONCILIATION_COMPLETE',domain:'SYSTEM',entityId:getDeviceId(),entityType:'CloudReconciliation',userId:'AUTHENTICATED_USER',metadata:{mode,results:results.map(x=>({domain:x.domain,local:x.local,remote:x.remote,protected:x.protected}))}});
       this.progress(100,protection.count?'Datos reconciliados. Los cambios pendientes permanecen protegidos.':'Cloud y Local verificados. Iniciando ERP…');
       await new Promise(r=>setTimeout(r,350));this.hide();
-      return {ok:true,mode,results,protected:protection.count};
+      return {ok:true,mode,results,protected:protection.count,confirmedHistorical:Number(protection.confirmedHistorical||0)};
     }catch(error){
       const msg=String(error?.message||error);
       if($('newPcBootstrapTitle'))$('newPcBootstrapTitle').textContent='No se pudo verificar la sincronización';

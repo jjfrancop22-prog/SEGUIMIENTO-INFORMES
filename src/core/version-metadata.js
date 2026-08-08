@@ -1,5 +1,5 @@
-export const APP_VERSION='V5.0.0-A1';
-export const APP_BUILD='PWA_CLOUD_RECONCILIATION_FIX';
+export const APP_VERSION='V5.0.0-A1.1';
+export const APP_BUILD='BASELINE_OUTBOX_RECONCILIATION_FIX';
 export const SYNC_PROTOCOL_VERSION=1;
 export const ENTITY_SYNC_SCHEMA_VERSION=1;
 export const CONFLICT_SCHEMA_VERSION=2;
@@ -7,7 +7,7 @@ export const SECURITY_SCHEMA_VERSION=1;
 export const CLOUD_PROVIDER='FIREBASE_FIRESTORE';
 export const CLOUD_MODE='CLOUD_BOOTSTRAP_PLUS_7_DOMAIN_LIVE_SYNC_CONFLICT_RESOLUTION_FIREBASE_AUTH_INTEGRATED';
 export const APP_VERSION_LABEL=`PEP ${APP_VERSION}`;
-export const APP_BUILD_LABEL='PWA Cloud Reconciliation Fix';
+export const APP_BUILD_LABEL='Baseline & Outbox Reconciliation Fix';
 export const APP_RELEASED_AT='2026-08-08';
 export const VERSION_METADATA=Object.freeze({
   appVersion:APP_VERSION,

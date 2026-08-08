@@ -272,7 +272,7 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh()}});
   await liveSyncManager.init({restore:false});
 
-  // V5.0.0-A1 — Cloud Reconciliation: después de Login/Claims y antes de Dashboard/Live Sync.
+  // V5.0.0-A1.1 — Baseline & Outbox Reconciliation: después de Login/Claims y antes de Dashboard/Live Sync.
   const authenticatedSession=securityManager.sessions.current();
   if(authenticatedSession?.authenticated&&authenticatedSession?.uid&&authenticatedSession?.role&&authenticatedSession.role!=='LOCAL_LEGACY'){
     try{await cloudReconciliationManager.runAfterLogin();}
@@ -284,6 +284,7 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   syncFoundationUI.onBootstrap=async()=>{await refresh();if(securityManager.sessions.isAuthenticated())await liveSyncManager.activateAll({manual:false});await refresh()};
   await financialSecurity.init();await refresh();clearForm();
   await liveSyncManager.restoreConfigured().catch(e=>toast(`Live Sync: ${e.message||e}`,true));
+  await globalSyncHealthUI?.refresh?.().catch(()=>{});
   permissionEnforcement.apply();
   performanceCoordinator.end(perfToken);performanceCoordinator.renderPanel();
 }
@@ -300,7 +301,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V5.0.0-A1 listo · Cloud Reconciliation');
+    if(status.sessionUnlocked)toast('PEP V5.0.0-A1.1 listo · Baseline & Outbox Reconciliation');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';

@@ -1,4 +1,4 @@
-import {get,getAll} from '../data/database.js';
+import {get,getAll,put} from '../data/database.js';
 import {STORES} from '../data/schema.js';
 import {SYNC_DOMAINS} from '../sync/sync-constants.js';
 import {syncStateRepository} from '../data/sync-state-repository.js';
@@ -53,6 +53,31 @@ export class GlobalSyncHealthUI{
       throw e;
     }
   }
+
+  async verifyBaselineIfReady({health,baseline,seed,bootstrap,manifest,outboxPending,inboxPending,activeMain,domains}={}){
+    const alreadyVerified=String(baseline?.status||'').toUpperCase()==='VERIFIED_CLOUD_BASELINE';
+    if(alreadyVerified)return baseline;
+    const seedVerified=manifest?.status==='COMPLETE'||seed?.status==='COMPLETE';
+    const bootstrapOrOriginComplete=bootstrap?.status==='COMPLETE'||seedVerified;
+    const listenersReady=activeMain===MAIN_LIVE.size;
+    const domainsHealthy=Array.isArray(domains)&&domains.every(x=>!x.lastError);
+    if(!health?.connected||!seedVerified||!bootstrapOrOriginComplete||!listenersReady||outboxPending!==0||inboxPending!==0||!domainsHealthy)return baseline;
+    const domainCounts={};
+    for(const cfg of SYNC_DOMAINS)domainCounts[cfg.id]=(await getAll(STORES[cfg.store])).length;
+    const verifiedAt=now();
+    const verified={
+      ...(baseline||{}),id:BASELINE_ID,type:'CLOUD_BASELINE',
+      baselineId:baseline?.baselineId||manifest?.baselineId||`VERIFIED-${getDeviceId()}`,
+      status:'VERIFIED_CLOUD_BASELINE',verifiedAt,updatedAt:verifiedAt,
+      deviceId:getDeviceId(),appVersion:VERSION_METADATA.appVersion,
+      syncProtocolVersion:VERSION_METADATA.syncProtocolVersion,
+      entitySyncSchemaVersion:VERSION_METADATA.entitySyncSchemaVersion,
+      domainCounts,verificationSource:'AUTO_HEALTH_GATE'
+    };
+    await put(STORES.meta,verified);
+    eventBus.emit('sync:baseline-verified',{baseline:verified});
+    return verified;
+  }
   listenerState(domain){
     if(MAIN_LIVE.has(domain))return this.liveController?.domains?.get(domain)?.active?'ACTIVO':'DETENIDO';
     return '—';
@@ -74,14 +99,16 @@ export class GlobalSyncHealthUI{
     });
     const outboxPending=domains.reduce((s,x)=>s+x.pending,0),inboxPending=domains.reduce((s,x)=>s+x.inboxPending,0);
     const activeMain=domains.filter(x=>MAIN_LIVE.has(x.id)&&x.listener==='ACTIVO').length;
-    const baselineReady=baseline?.status==='READY_FOR_INITIAL_CLOUD_SEED';
+    const verifiedBaseline=await this.verifyBaselineIfReady({health,baseline,seed,bootstrap,manifest,outboxPending,inboxPending,activeMain,domains});
+    const baselineReady=['READY_FOR_INITIAL_CLOUD_SEED','VERIFIED_CLOUD_BASELINE'].includes(String(verifiedBaseline?.status||'').toUpperCase());
+    const baselineVerified=String(verifiedBaseline?.status||'').toUpperCase()==='VERIFIED_CLOUD_BASELINE'||(baselineReady&&(manifest?.status==='COMPLETE'||seed?.status==='COMPLETE'));
     const cloudPrepared=manifest?.status==='COMPLETE'||seed?.status==='COMPLETE'||bootstrap?.status==='COMPLETE';
     const bootstrapComplete=bootstrap?.status==='COMPLETE';
     const seedVerified=manifest?.status==='COMPLETE'||seed?.status==='COMPLETE';
     const schemaCompatible=Number(VERSION_METADATA.entitySyncSchemaVersion)===1&&Number(VERSION_METADATA.syncProtocolVersion)===1;
     const checks=[!!health.connected,activeMain===MAIN_LIVE.size,baselineReady,cloudPrepared,schemaCompatible,outboxPending===0,inboxPending===0,domains.every(x=>!x.lastError)];
     const score=Math.round(checks.filter(Boolean).length/checks.length*100);
-    return {checkedAt:now(),health,baseline,seed,bootstrap,manifest,domains,outboxPending,inboxPending,activeMain,baselineReady,bootstrapComplete,seedVerified,cloudPrepared,schemaCompatible,score,lastAckAt:this.lastAckAt,deviceId:getDeviceId(),version:VERSION_METADATA};
+    return {checkedAt:now(),health,baseline:verifiedBaseline,seed,bootstrap,manifest,domains,outboxPending,inboxPending,activeMain,baselineReady,baselineVerified,bootstrapComplete,seedVerified,cloudPrepared,schemaCompatible,score,lastAckAt:this.lastAckAt,deviceId:getDeviceId(),version:VERSION_METADATA};
   }
   pill(ok,yes='OK',no='REVISAR'){return `<span class="pill ${ok?'ok':'danger'}">${ok?yes:no}</span>`}
   renderActivity(){const el=this.$('healthActivity');if(!el)return;el.innerHTML=this.activity.length?this.activity.slice(0,20).map(x=>`<div class="timeline-row"><b>${esc(x.type)} · ${esc(x.domain)}</b><div>${esc(x.detail||'')}</div><div class="muted">${esc(fmt(x.at))}</div></div>`).join(''):'<div class="empty">Sin eventos de sincronización registrados en esta sesión.</div>'}
@@ -92,7 +119,7 @@ export class GlobalSyncHealthUI{
     const checks=this.$('healthGlobalChecks');if(checks)checks.innerHTML=`
       <div>${this.pill(s.health.connected,'CONECTADO','DESCONECTADO')} Firebase / CloudAdapter</div>
       <div>${this.pill(s.activeMain===MAIN_LIVE.size,'ACTIVO','INCOMPLETO')} Multi-Domain Live Sync</div>
-      <div>${this.pill(s.baselineReady,'READY','PENDIENTE')} Baseline</div>
+      <div>${this.pill(s.baselineVerified,'VERIFICADO','PENDIENTE')} Baseline</div>
       <div>${this.pill(s.seedVerified,'VERIFICADO','NO VERIFICADO')} Initial Cloud Seed</div>
       <div>${this.pill(s.bootstrapComplete||s.seedVerified,s.bootstrapComplete?'COMPLETE':'ORIGEN SEED','PENDIENTE')} Bootstrap / Origen</div>
       <div>${this.pill(s.schemaCompatible,'COMPATIBLE','REVISAR')} Schema v${esc(s.version.entitySyncSchemaVersion)} · protocolo ${esc(s.version.syncProtocolVersion)}</div>`;
