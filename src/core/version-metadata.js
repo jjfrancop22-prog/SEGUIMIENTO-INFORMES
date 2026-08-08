@@ -1,6 +1,25 @@
-export const APP_VERSION='V4.9.0';
-export const APP_BUILD='NEW_PC_AUTO_BOOTSTRAP';
+export const APP_VERSION='V4.9.0-A';
+export const APP_BUILD='BOOTSTRAP_AFTER_LOGIN_FIX';
+export const SYNC_PROTOCOL_VERSION=1;
+export const ENTITY_SYNC_SCHEMA_VERSION=1;
+export const CONFLICT_SCHEMA_VERSION=2;
+export const SECURITY_SCHEMA_VERSION=1;
+export const CLOUD_PROVIDER='FIREBASE_FIRESTORE';
+export const CLOUD_MODE='CLOUD_BOOTSTRAP_PLUS_7_DOMAIN_LIVE_SYNC_CONFLICT_RESOLUTION_FIREBASE_AUTH_INTEGRATED';
 export const APP_VERSION_LABEL=`PEP ${APP_VERSION}`;
-export const APP_BUILD_LABEL='New PC Auto Bootstrap';
+export const APP_BUILD_LABEL='Bootstrap After Login Fix';
 export const APP_RELEASED_AT='2026-08-08';
-export const VERSION_METADATA=Object.freeze({version:APP_VERSION,build:APP_BUILD,label:APP_VERSION_LABEL,buildLabel:APP_BUILD_LABEL,releasedAt:APP_RELEASED_AT});
+export const VERSION_METADATA=Object.freeze({
+  appVersion:APP_VERSION,
+  version:APP_VERSION,
+  build:APP_BUILD,
+  syncProtocolVersion:SYNC_PROTOCOL_VERSION,
+  entitySyncSchemaVersion:ENTITY_SYNC_SCHEMA_VERSION,
+  conflictSchemaVersion:CONFLICT_SCHEMA_VERSION,
+  securitySchemaVersion:SECURITY_SCHEMA_VERSION,
+  cloudProvider:CLOUD_PROVIDER,
+  cloudMode:CLOUD_MODE,
+  label:APP_VERSION_LABEL,
+  buildLabel:APP_BUILD_LABEL,
+  releasedAt:APP_RELEASED_AT
+});

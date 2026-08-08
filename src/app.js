@@ -271,10 +271,13 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh()}});
   await liveSyncManager.init({restore:false});
 
-  // V4.9.0 — New PC Auto Bootstrap: en una PC vacía, Firebase hidrata IndexedDB una sola vez antes del primer Dashboard.
+  // V4.9.0-A — Bootstrap After Login Fix. Nunca se ejecuta antes de una sesión Firebase válida.
   newPcAutoBootstrap.bindRetry(async r=>{if(r?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(()=>{});}});
-  const autoBootstrap=await newPcAutoBootstrap.runIfNeeded();
-  if(autoBootstrap?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));}
+  const authenticatedSession=securityManager.sessions.current();
+  if(authenticatedSession?.authenticated&&authenticatedSession?.uid&&authenticatedSession?.role&&authenticatedSession.role!=='LOCAL_LEGACY'){
+    const autoBootstrap=await newPcAutoBootstrap.runIfNeeded();
+    if(autoBootstrap?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));}
+  }
 
   globalSyncHealthUI=new GlobalSyncHealthUI(syncManager,{liveController:liveSyncManager});await globalSyncHealthUI.init();
   await outboxInspector.init();await conflictReviewCenter.init();
@@ -297,7 +300,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V4.9.0 listo · New PC Auto Bootstrap');
+    if(status.sessionUnlocked)toast('PEP V4.9.0-A listo · Bootstrap After Login Fix');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';
