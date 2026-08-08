@@ -14,3 +14,14 @@ Base: V4.8.0-C GitHub Production estable.
 ## GitHub + Netlify
 
 Mantener index.html, src/, templates/, netlify.toml y _redirects directamente en la raíz del repositorio.
+
+## PEP V5.0.0-A — Enterprise Desktop Foundation
+
+Esta entrega agrega únicamente la capa PWA instalable sobre la V4.9.0-A estable:
+- manifest.webmanifest
+- service-worker.js
+- iconos 192/512
+- botón de instalación cuando el navegador expone el prompt PWA
+- apertura en modo standalone después de instalar
+
+No modifica Login, SessionManager, PermissionEngine, New PC Auto Bootstrap, Live Sync ni módulos de negocio.
