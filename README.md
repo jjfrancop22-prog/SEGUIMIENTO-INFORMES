@@ -25,3 +25,13 @@ Esta entrega agrega únicamente la capa PWA instalable sobre la V4.9.0-A estable
 - apertura en modo standalone después de instalar
 
 No modifica Login, SessionManager, PermissionEngine, New PC Auto Bootstrap, Live Sync ni módulos de negocio.
+
+## V5.0.0-A1 — PWA Cloud Reconciliation Fix
+
+- Después del Login y Claims, PEP comprueba Firebase antes de continuar.
+- Una PC vacía ejecuta Bootstrap completo.
+- Una PC con datos ejecuta reconciliación incremental por dominio; solo usa snapshot completo si detecta desfase o hay Outbox protegido.
+- Outbox PENDING/ERROR nunca es sobrescrito por Cloud Reconciliation.
+- Live Sync se restaura después de la reconciliación inicial.
+- El Service Worker no cachea index.html ni JavaScript operativo; iconos y manifest sí permanecen en caché.
+- La PWA detecta un Service Worker nuevo y ofrece “Actualizar ahora”.

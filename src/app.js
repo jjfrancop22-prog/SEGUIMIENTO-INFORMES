@@ -35,9 +35,10 @@ import {EnterpriseSessionGate} from './security/enterprise-session-gate.js';
 import {StartupManager} from './core/startup-manager.js';
 import {performanceCoordinator} from './core/performance-coordinator.js';
 import {NewPcAutoBootstrap} from './modules/new-pc-auto-bootstrap.js';
+import {CloudReconciliationManager} from './modules/cloud-reconciliation-manager.js';
 
 const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let permissionEnforcement=null;
+let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);const cloudReconciliationManager=new CloudReconciliationManager(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let permissionEnforcement=null;
 function toast(msg,error=false){const el=$('toast');el.textContent=msg;el.className=`toast show${error?' error':''}`;clearTimeout(toast.t);toast.t=setTimeout(()=>el.className='toast',2800)}
 function showError(msg=''){const el=$('formError');el.textContent=msg;el.classList.toggle('show',!!msg)}
 function showModule(moduleId){document.querySelectorAll('.module-tab').forEach(x=>x.classList.toggle('active',x.dataset.module===moduleId));document.querySelectorAll('.subnav').forEach(x=>x.classList.toggle('active',x.dataset.subnav===moduleId))}
@@ -271,12 +272,11 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh()}});
   await liveSyncManager.init({restore:false});
 
-  // V4.9.0-A — Bootstrap After Login Fix. Nunca se ejecuta antes de una sesión Firebase válida.
-  newPcAutoBootstrap.bindRetry(async r=>{if(r?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(()=>{});}});
+  // V5.0.0-A1 — Cloud Reconciliation: después de Login/Claims y antes de Dashboard/Live Sync.
   const authenticatedSession=securityManager.sessions.current();
   if(authenticatedSession?.authenticated&&authenticatedSession?.uid&&authenticatedSession?.role&&authenticatedSession.role!=='LOCAL_LEGACY'){
-    const autoBootstrap=await newPcAutoBootstrap.runIfNeeded();
-    if(autoBootstrap?.bootstrapped){await refresh();await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));}
+    try{await cloudReconciliationManager.runAfterLogin();}
+    catch(e){toast(`Reconciliación: ${e.message||e}`,true);throw e}
   }
 
   globalSyncHealthUI=new GlobalSyncHealthUI(syncManager,{liveController:liveSyncManager});await globalSyncHealthUI.init();
@@ -300,7 +300,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V4.9.0-A listo · Bootstrap After Login Fix');
+    if(status.sessionUnlocked)toast('PEP V5.0.0-A1 listo · Cloud Reconciliation');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';
