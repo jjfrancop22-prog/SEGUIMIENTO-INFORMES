@@ -36,9 +36,10 @@ import {StartupManager} from './core/startup-manager.js';
 import {performanceCoordinator} from './core/performance-coordinator.js';
 import {NewPcAutoBootstrap} from './modules/new-pc-auto-bootstrap.js';
 import {CloudReconciliationManager} from './modules/cloud-reconciliation-manager.js';
+import {SyncResilienceManager} from './sync/sync-resilience-manager.js';
 
 const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);const cloudReconciliationManager=new CloudReconciliationManager(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let permissionEnforcement=null;
+let allRows=[],queues={analysis:[],waiting:[],stopped:[],registry:[]},clients=[],matrices=[],lastRegistered=null,importRows=[],importPreviewRows=[],lastImportFileName='',lastImportFormat='',labPending=[],labEntries=[];const adapter=firebaseCloudAdapterSingleton;const syncManager=new SyncManager(adapter);const syncFoundationUI=new SyncFoundationUI(syncManager);const newPcAutoBootstrap=new NewPcAutoBootstrap(adapter);const cloudReconciliationManager=new CloudReconciliationManager(adapter);let liveSyncManager=null;let globalSyncHealthUI=null;let syncResilienceManager=null;let permissionEnforcement=null;
 function toast(msg,error=false){const el=$('toast');el.textContent=msg;el.className=`toast show${error?' error':''}`;clearTimeout(toast.t);toast.t=setTimeout(()=>el.className='toast',2800)}
 function showError(msg=''){const el=$('formError');el.textContent=msg;el.classList.toggle('show',!!msg)}
 function showModule(moduleId){document.querySelectorAll('.module-tab').forEach(x=>x.classList.toggle('active',x.dataset.module===moduleId));document.querySelectorAll('.subnav').forEach(x=>x.classList.toggle('active',x.dataset.subnav===moduleId))}
@@ -289,6 +290,10 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   // dominios que el rol autenticado puede leer; activateAll() persiste luego
   // esas preferencias para futuras restauraciones de sesión.
   await liveSyncManager.activateAll({manual:false}).catch(e=>toast(`Live Sync: ${e.message||e}`,true));
+  // V5.0.0-STABLE — capa de resiliencia alrededor del motor congelado.
+  syncResilienceManager=new SyncResilienceManager(syncManager,{liveController:liveSyncManager,onRecovered:async()=>{await refresh();await globalSyncHealthUI?.refresh?.().catch(()=>{})}});
+  await syncResilienceManager.init();
+  window.pepSyncResilienceManager=syncResilienceManager;
   await globalSyncHealthUI?.refresh?.().catch(()=>{});
   permissionEnforcement.apply();
   performanceCoordinator.end(perfToken);performanceCoordinator.renderPanel();
@@ -306,7 +311,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V5.0.0-A1.2 listo · Live Sync Auto-Start');
+    if(status.sessionUnlocked)toast('PEP V5.0.0-STABLE listo · Multi-PC Enterprise');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';

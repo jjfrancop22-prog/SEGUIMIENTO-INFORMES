@@ -95,7 +95,7 @@ export class GlobalSyncHealthUI{
       const listener=this.listenerState(cfg.id);
       const error=state.lastError||null;
       const runtimeOk=!error&&pending===0;
-      return {id:cfg.id,label:cfg.label,listener,pending,inboxPending,lastPushAt:state.lastPushAt,lastPullAt:state.lastPullAt,lastSuccessAt:state.lastSuccessAt,cursor:state.cursor,lastError:error,status:runtimeOk?'HEALTHY':'ATTENTION'};
+      return {id:cfg.id,label:cfg.label,listener,pending,inboxPending,lastPushAt:state.lastPushAt,lastPullAt:state.lastPullAt,lastAckAt:state.lastAckAt,lastSuccessAt:state.lastSuccessAt,cursor:state.cursor,lastError:error,status:runtimeOk?'HEALTHY':'ATTENTION'};
     });
     const outboxPending=domains.reduce((s,x)=>s+x.pending,0),inboxPending=domains.reduce((s,x)=>s+x.inboxPending,0);
     const activeMain=domains.filter(x=>MAIN_LIVE.has(x.id)&&x.listener==='ACTIVO').length;
@@ -108,7 +108,9 @@ export class GlobalSyncHealthUI{
     const schemaCompatible=Number(VERSION_METADATA.entitySyncSchemaVersion)===1&&Number(VERSION_METADATA.syncProtocolVersion)===1;
     const checks=[!!health.connected,activeMain===MAIN_LIVE.size,baselineReady,cloudPrepared,schemaCompatible,outboxPending===0,inboxPending===0,domains.every(x=>!x.lastError)];
     const score=Math.round(checks.filter(Boolean).length/checks.length*100);
-    return {checkedAt:now(),health,baseline:verifiedBaseline,seed,bootstrap,manifest,domains,outboxPending,inboxPending,activeMain,baselineReady,baselineVerified,bootstrapComplete,seedVerified,cloudPrepared,schemaCompatible,score,lastAckAt:this.lastAckAt,deviceId:getDeviceId(),version:VERSION_METADATA};
+    const persistedAck=domains.map(x=>x.lastAckAt).filter(Boolean).sort().at(-1)||null;
+    const allSynchronized=score===100&&activeMain===MAIN_LIVE.size&&outboxPending===0&&inboxPending===0&&domains.every(x=>x.status==='HEALTHY');
+    return {checkedAt:now(),health,baseline:verifiedBaseline,seed,bootstrap,manifest,domains,outboxPending,inboxPending,activeMain,baselineReady,baselineVerified,bootstrapComplete,seedVerified,cloudPrepared,schemaCompatible,score,lastAckAt:this.lastAckAt||persistedAck,allSynchronized,deviceId:getDeviceId(),version:VERSION_METADATA};
   }
   pill(ok,yes='OK',no='REVISAR'){return `<span class="pill ${ok?'ok':'danger'}">${ok?yes:no}</span>`}
   renderActivity(){const el=this.$('healthActivity');if(!el)return;el.innerHTML=this.activity.length?this.activity.slice(0,20).map(x=>`<div class="timeline-row"><b>${esc(x.type)} · ${esc(x.domain)}</b><div>${esc(x.detail||'')}</div><div class="muted">${esc(fmt(x.at))}</div></div>`).join(''):'<div class="empty">Sin eventos de sincronización registrados en esta sesión.</div>'}
@@ -124,7 +126,7 @@ export class GlobalSyncHealthUI{
       <div>${this.pill(s.bootstrapComplete||s.seedVerified,s.bootstrapComplete?'COMPLETE':'ORIGEN SEED','PENDIENTE')} Bootstrap / Origen</div>
       <div>${this.pill(s.schemaCompatible,'COMPATIBLE','REVISAR')} Schema v${esc(s.version.entitySyncSchemaVersion)} · protocolo ${esc(s.version.syncProtocolVersion)}</div>`;
     const rows=this.$('healthDomainRows');if(rows)rows.innerHTML=s.domains.map(d=>`<tr><td><b>${esc(d.label)}</b><div class="muted">${d.id}</div></td><td>${this.pill(d.listener==='ACTIVO',d.listener,d.listener)}</td><td>${d.pending}</td><td>${d.inboxPending}</td><td>${esc(fmt(d.lastPushAt))}</td><td>${esc(fmt(d.lastPullAt))}</td><td>${d.lastError?`<span class="pill danger" title="${esc(d.lastError)}">ERROR</span>`:this.pill(true,'HEALTHY','')}</td></tr>`).join('');
-    const info=this.$('healthInfo');if(info)info.innerHTML=s.score===100?'<div class="notice"><b>✅ SALUD GLOBAL 100%.</b> Firebase conectado, Live Sync operativo, Outbox/Inbox limpios y sin errores de dominio.</div>':`<div class="notice warn"><b>⚠️ SALUD GLOBAL ${s.score}%.</b> Revise los indicadores en rojo antes de una operación administrativa.</div>`;
+    const info=this.$('healthInfo');if(info)info.innerHTML=s.allSynchronized?'<div class="notice"><b>✅ TODOS LOS DOMINIOS SINCRONIZADOS.</b> Salud 100%, Firebase conectado, 7/7 listeners activos, Baseline verificado y Outbox/Inbox limpios.</div>':`<div class="notice warn"><b>⚠️ SALUD GLOBAL ${s.score}%.</b> Revise los indicadores en rojo antes de una operación administrativa.</div>`;
     this.renderActivity();return s;
   }
   async reconnect(){const btn=this.$('healthReconnect');if(btn)btn.disabled=true;try{let h=await this.adapter.health();if(!h.connected){if(typeof this.adapter.restoreConnection==='function')await this.adapter.restoreConnection();h=await this.adapter.health();if(!h.connected)await this.adapter.connect()}this.addActivity('RECOVERY','SYSTEM','Firebase reconectado');await this.refresh()}catch(e){this.addActivity('ERROR','SYSTEM',e.message||e);throw e}finally{if(btn)btn.disabled=false}}

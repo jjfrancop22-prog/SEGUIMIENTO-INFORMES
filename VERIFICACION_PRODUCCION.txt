@@ -1,10 +1,8 @@
-PEP Enterprise V4.9.0-A
-Build: BOOTSTRAP_AFTER_LOGIN_FIX
-Base estable: V4.8.0-C
-Login: flujo V4.8.0-C sin cambios
-Bootstrap antes de login: NO
-Bootstrap después de sesión + claims válidos: SI
-SessionManager modificado: NO
-PermissionEngine modificado: NO
-LiveSyncManager modificado: NO
-Módulos negocio modificados: NO
+PEP V5.0.0-STABLE — MULTI-PC ENTERPRISE
+Sync core freeze base: V5.0.0-A1.2
+Sync protocol: 1
+Entity sync schema: 1
+Conflict schema: 2
+Domains: SAMPLES, LABORATORY, REPORTS, BILLING, RECEIVABLES, CLIENTS, CATALOGS
+Runtime HTML/JS: network/no-store
+Static PWA cache: manifest + icons only

@@ -1,0 +1,15 @@
+PEP V5.0.0-STABLE — FROZEN SYNC CORE MANIFEST
+Freeze base: V5.0.0-A1.2
+Generated: 2026-08-08
+
+7d684d281af4749299562241d948e48d59b67010bae760adcbd7d4c78d19e236  src/sync/live-sync-manager.js
+b5374e74030795770c8b805eff086d0b3cca2bd97c4b7e63a2d78a9659e8978b  src/sync/domain-sync-runtime.js
+a77ef07b4a908d12f93997df3a3aa9496282b408c801a6e896968a582000b31c  src/sync/sync-manager.js
+c2f447c81dec4e7415aabc8cb125c26b7f23eeaac8c0d7e03d55be269d44fd84  src/sync/domain-runtime-manager.js
+5cb951eeefbcfeebf941a839d4ea6b126997f0a8093ae7e1f7e6c0624da017a1  src/sync/cloud-adapter.js
+1b5d99e1ed239036beca391ee9d84523ca220eb35aef6a1931c0c965cfb6b060  src/sync/firebase-cloud-adapter.js
+2af23ff90d54c0d538ee9ebe3602a74f221691d03afad388abd1a01c0c5304bb  src/data/outbox-repository.js
+563f78c5be71a5b2a87a1b173f6db8b50cff8979722a0122d9f9c0f71356d74e  src/data/inbox-repository.js
+833cc99de462ddfa8f04136c9c2adabd8dd0f86137e0f77cf88bcd9217e75b8c  src/data/sync-state-repository.js
+3725819558863c0cae4e3b0d4a785ec5f8ffec1e2335c5e9271a979f8c3cc8a4  src/sync/conflict-resolution-manager.js
+c6365b1659f59b724ae301ac73db394e41897a794363596e68770fc5f0a73ca5  src/data/conflict-repository.js
