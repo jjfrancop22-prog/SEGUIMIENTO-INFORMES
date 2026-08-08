@@ -1,6 +1,7 @@
 import {reportsService,AUTHORIZATION_LABELS,isAuthorizationHold} from './reports.js';
 import {repositories} from '../data/repositories.js';
 import {visibleForActiveSamples} from '../data/tombstone.js';
+import {refreshEnterpriseTableTools} from '../core/enterprise-table-tools.js';
 
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -43,6 +44,7 @@ function renderPending(){
   const q=($('searchReportsPending')?.value||'').trim().toLowerCase();
   const list=rows.filter(r=>r.reportStatus==='PENDING_DELIVERY'&&searchMatch(r,q));
   host.innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th></th><th>Código</th><th>Cliente / Sucursal</th><th>Matriz</th><th>Analista</th><th>Recepción</th><th>F. máxima</th><th>SLA</th><th>Entrega real</th><th>Acción</th></tr></thead><tbody>${list.map(r=>`<tr><td><input type="checkbox" style="width:auto" data-report-pending-check="${r.id}" ${checked(selectedPending,r.id)}></td><td><b>${esc(r.code)}</b><div class="muted">${esc(r.year)}</div></td><td><b>${esc(r.clientId)}</b><div class="muted">${esc(r.branch||'—')}</div></td><td>${esc(r.matrixId)}<div class="muted">${esc(r.groupId||'')}</div></td><td>${esc(r.analyst||'—')}</td><td>${fmt(r.receptionDate)}</td><td><b>${fmt(r.maxReportDate)}</b></td><td>${slaBadge(r)}</td><td><input type="date" id="reportDelivery_${r.id}" value="${esc(r.realDeliveryDate||'')}"></td><td><button class="btn primary small" data-report-delivery-save="${r.id}">Guardar</button> <button class="btn danger small" data-safe-delete-sample="${r.sampleId}" data-safe-delete-stage="REPORTS_PENDING">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay informes pendientes de entrega real.</div>';
+  refreshEnterpriseTableTools(host);
   if($('reportsPendingVisible'))$('reportsPendingVisible').textContent=`${list.length} visibles`;
   if($('reportsPendingSelected'))$('reportsPendingSelected').textContent=`${selectedPending.size} seleccionados`;
 }
@@ -51,6 +53,7 @@ function renderAuthorization(){
   const q=($('searchReportsAuth')?.value||'').trim().toLowerCase();
   const list=rows.filter(r=>r.reportStatus==='AUTHORIZATION'&&searchMatch(r,q));
   host.innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th></th><th>Código</th><th>Cliente / Sucursal</th><th>Analista</th><th>Entrega real</th><th>Estado autorización</th><th>Fecha autorización</th><th>Acción</th></tr></thead><tbody>${list.map(r=>{const hold=isAuthorizationHold(r.authorizationStatus);return `<tr><td><input type="checkbox" style="width:auto" data-report-auth-check="${r.id}" ${checked(selectedAuth,r.id)}></td><td><b>${esc(r.code)}</b><div class="muted">${esc(r.year)}</div></td><td><b>${esc(r.clientId)}</b><div class="muted">${esc(r.branch||'—')}</div></td><td>${esc(r.analyst||'—')}</td><td>${fmt(r.realDeliveryDate)}</td><td><select id="reportAuthStatus_${r.id}" data-report-auth-status="${r.id}">${authOptions(r.authorizationStatus)}</select></td><td><input type="date" id="reportAuthDate_${r.id}" value="${hold?'':esc(r.authorizationDate||today())}" ${hold?'disabled':''}></td><td><button class="btn ${hold?'secondary':'primary'} small" id="reportAuthBtn_${r.id}" data-report-auth-save="${r.id}">${hold?'Guardar estado':'Autorizar'}</button> <button class="btn danger small" data-safe-delete-sample="${r.sampleId}" data-safe-delete-stage="AUTHORIZATION">Eliminar</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No hay informes pendientes de autorización.</div>';
+  refreshEnterpriseTableTools(host);
   if($('reportsAuthSelected'))$('reportsAuthSelected').textContent=`${selectedAuth.size} seleccionados`;
 }
 function renderPortal(){
@@ -58,6 +61,7 @@ function renderPortal(){
   const q=($('searchReportsPortal')?.value||'').trim().toLowerCase();
   const list=rows.filter(r=>r.reportStatus==='PORTAL_PENDING'&&searchMatch(r,q));
   host.innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th></th><th>Código</th><th>Cliente / Sucursal</th><th>Matriz</th><th>Autorización</th><th>Fecha autorización</th><th>Portal</th></tr></thead><tbody>${list.map(r=>`<tr><td><input type="checkbox" style="width:auto" data-report-portal-check="${r.id}" ${checked(selectedPortal,r.id)}></td><td><b>${esc(r.code)}</b><div class="muted">${esc(r.year)}</div></td><td><b>${esc(r.clientId)}</b><div class="muted">${esc(r.branch||'—')}</div></td><td>${esc(r.matrixId)}</td><td><span class="badge purple">${esc(authLabel(r.authorizationStatus))}</span></td><td>${fmt(r.authorizationDate)}</td><td><button class="btn primary small" data-report-portal-send="${r.id}">Enviar al Portal</button> <button class="btn danger small" data-safe-delete-sample="${r.sampleId}" data-safe-delete-stage="PORTAL">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay informes pendientes de envío al Portal Cliente.</div>';
+  refreshEnterpriseTableTools(host);
   if($('reportsPortalSelected'))$('reportsPortalSelected').textContent=`${selectedPortal.size} seleccionados`;
 }
 function finalFiltered(){
@@ -68,6 +72,7 @@ function renderFinal(){
   const host=$('reportsFinalTable');if(!host)return;
   const list=finalFiltered();
   host.innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Código</th><th>Cliente / Sucursal</th><th>Matriz</th><th>Analista</th><th>Recepción</th><th>F. máxima</th><th>Entrega real</th><th>Autorización</th><th>F. autorización</th><th>Portal</th><th>Etapa</th></tr></thead><tbody>${list.map(r=>`<tr><td><b>${esc(r.code)}</b><div class="muted">${esc(r.year)}</div></td><td><b>${esc(r.clientId)}</b><div class="muted">${esc(r.branch||'—')}</div></td><td>${esc(r.matrixId)}<div class="muted">${esc(r.groupId||'')}</div></td><td>${esc(r.analyst||'—')}</td><td>${fmt(r.receptionDate)}</td><td>${fmt(r.maxReportDate)}</td><td>${fmt(r.realDeliveryDate)}</td><td>${esc(authLabel(r.authorizationStatus))}</td><td>${fmt(r.authorizationDate)}</td><td>${fmt(r.portalSentDate)}</td><td><span class="badge blue">${esc(stageLabel(r))}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No existen informes con estos filtros.</div>';
+  refreshEnterpriseTableTools(host);
   if($('reportsFinalVisible'))$('reportsFinalVisible').textContent=`${list.length} visibles`;
 }
 function renderAll(){renderStats();renderPending();renderAuthorization();renderPortal();renderFinal()}
