@@ -1,0 +1,5 @@
+PEP Enterprise V4.8.0-C
+GitHub Production definitiva
+index.html está en la raíz.
+Firebase Web App dqo-informes está preconfigurada.
+No contiene cambios D1/D2/D3.
