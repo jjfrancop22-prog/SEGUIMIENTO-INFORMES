@@ -108,7 +108,7 @@ function exportPortalDate(){exportByDate('portalSentDate','reportsPortalFrom','r
 
 
 const api={
-  async refresh(){await reportsService.reconcileDuplicates();await reportsService.ensureFromLaboratory();await reportsService.reconcileAuthorizationHolds();const [reportRows,samples]=await Promise.all([reportsService.all(),repositories.samples.all()]);const activeSampleIds=new Set(samples.map(x=>x.id));rows=visibleForActiveSamples(reportRows,activeSampleIds).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));renderAll()},
+  async refresh({syncDerived=true}={}){if(syncDerived){await reportsService.reconcileDuplicates();await reportsService.ensureFromLaboratory();await reportsService.reconcileAuthorizationHolds();}const [reportRows,samples]=await Promise.all([reportsService.all(),repositories.samples.all()]);const activeSampleIds=new Set(samples.map(x=>x.id));rows=visibleForActiveSamples(reportRows,activeSampleIds).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));renderAll()},
   init(){if(initialized)return;initialized=true;
     ['searchReportsPending','searchReportsAuth','searchReportsPortal','searchReportsFinal'].forEach(id=>$(id)?.addEventListener('input',renderAll));
     $('reportsAuthBatchStatus')?.addEventListener('change',()=>{const hold=isAuthorizationHold($('reportsAuthBatchStatus')?.value),date=$('reportsAuthBatchDate'),btn=$('reportsAuthBatchSave');if(date){date.disabled=hold;if(hold)date.value='';else if(!date.value)date.value=today()}if(btn)btn.textContent=hold?'Guardar seleccionados':'Autorizar seleccionados'});

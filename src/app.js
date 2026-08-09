@@ -90,7 +90,7 @@ function exportRegistryExcel(){
 function daysUntil(date){if(!date)return null;const today=new Date();today.setHours(0,0,0,0);const d=new Date(`${date}T12:00:00`);return Math.ceil((d-today)/86400000)}
 function labSlaBadge(entry){const n=daysUntil(entry.maxReportDate);if(n===null)return '<span class="badge">SIN FECHA</span>';if(n<0)return `<span class="badge red">VENCIDO · ${Math.abs(n)} día(s)</span>`;if(n<=2)return `<span class="badge amber">${n} día(s)</span>`;return `<span class="badge green">EN PLAZO · ${n} día(s)</span>`}
 function labDecisionBadge(s){return s.workflow?.decisionStatus==='DETENIDA'?'<span class="badge red">DETENIDA</span>':'<span class="badge green">CONTINUAR</span>'}
-async function loadLaboratory(){await labService.reconcileDuplicateEntries({userId:'SYSTEM_IDENTITY_REPAIR'});labPending=(await labService.eligibleSamples()).sort((a,b)=>(b.receivedDate||b.samplingDate||'').localeCompare(a.receivedDate||a.samplingDate||''));labEntries=(await labService.entries()).filter(x=>x.officialEntryAt).sort((a,b)=>(b.officialEntryAt||'').localeCompare(a.officialEntryAt||''));if($('countLaboratory'))$('countLaboratory').textContent=labPending.length;if($('countLaboratorySub'))$('countLaboratorySub').textContent=labPending.length;renderLaboratory()}
+async function loadLaboratory({syncDerived=true}={}){if(syncDerived)await labService.reconcileDuplicateEntries({userId:'SYSTEM_IDENTITY_REPAIR'});labPending=(await labService.eligibleSamples()).sort((a,b)=>(b.receivedDate||b.samplingDate||'').localeCompare(a.receivedDate||a.samplingDate||''));labEntries=(await labService.entries()).filter(x=>x.officialEntryAt).sort((a,b)=>(b.officialEntryAt||'').localeCompare(a.officialEntryAt||''));if($('countLaboratory'))$('countLaboratory').textContent=labPending.length;if($('countLaboratorySub'))$('countLaboratorySub').textContent=labPending.length;renderLaboratory()}
 function renderLaboratory(){if(!$('labPendingTable'))return;const qp=$('searchLabPending')?.value.trim().toLowerCase()||'',qw=$('searchLabWorkspace')?.value.trim().toLowerCase()||'';const pend=labPending.filter(x=>hay(x,qp));const work=labEntries.filter(x=>!qw||[x.code,x.codeFull,x.clientId,x.branch,x.matrixId,x.analyst,x.serviceType].join(' ').toLowerCase().includes(qw));const stopped=labPending.filter(x=>x.workflow?.decisionStatus==='DETENIDA').length;const overdue=labEntries.filter(x=>{const n=daysUntil(x.maxReportDate);return n!==null&&n<0}).length;$('labStats').innerHTML=[['Pendientes',labPending.length],['Detenidas visibles',stopped],['En proceso',labEntries.length],['Vencidas',overdue]].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');$('labPendingTable').innerHTML=pend.length?`<div class="table-wrap"><table><thead><tr><th>Código</th><th>Cliente / Sucursal</th><th>Matriz</th><th>Fecha muestra</th><th>Recepción actual</th><th>Decisión</th><th>Acción</th></tr></thead><tbody>${pend.map(x=>`<tr><td><b>${esc(x.code)}</b><div class="muted">${esc(x.year)}</div></td><td><b>${esc(x.clientId)}</b><div class="muted">${esc(x.branch||'—')}</div></td><td>${esc(x.matrixId)}<div class="muted">${esc(x.groupId)}</div></td><td>${formatDate(x.samplingDate)}</td><td>${formatDate(x.receivedDate)}</td><td>${labDecisionBadge(x)}</td><td><button class="btn primary small" data-lab-open="${x.id}">Cargar / revisar</button> <button class="btn secondary small" data-history="${x.id}">Historial</button> <button class="btn danger small" data-safe-delete-sample="${x.id}" data-safe-delete-stage="LABORATORY">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay muestras pendientes de ingreso oficial.</div>';$('labWorkspaceTable').innerHTML=work.length?`<div class="table-wrap"><table><thead><tr><th>Código</th><th>Cliente / Sucursal</th><th>Analista</th><th>Servicio</th><th>Recepción</th><th>Fecha máxima</th><th>SLA</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${work.map(x=>`<tr><td><b>${esc(x.code)}</b><div class="muted">${esc(x.year)}</div></td><td><b>${esc(x.clientId)}</b><div class="muted">${esc(x.branch||'—')}</div></td><td><input class="billing-input" id="labAnalyst_${x.id}" value="${esc(x.analyst||'')}"></td><td>${esc(x.serviceType||'INTERNO')}</td><td>${formatDate(x.receptionDate)}</td><td><b>${formatDate(x.maxReportDate)}</b></td><td>${labSlaBadge(x)}</td><td><span class="badge blue">EN PROCESO</span></td><td><button class="btn blue small" data-lab-save-analyst="${x.id}">Guardar analista</button> <button class="btn secondary small" data-lab-history="${x.sampleId}">Historial Lab</button> <button class="btn danger small" data-safe-delete-sample="${x.sampleId}" data-safe-delete-stage="LABORATORY">Eliminar</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Todavía no hay ingresos oficiales de Laboratorio.</div>'}
 async function loadLabAnalystOptions(){if(!$('labAnalystList'))return;const rows=await labService.analysts();$('labAnalystList').innerHTML=rows.map(x=>`<option value="${esc(x.name||'')}"></option>`).join('')}
 function applyLabServiceSla(){if(!$('labServiceType')||!$('labSlaDays'))return;const days=$('labServiceType').value==='EXTERNO'?15:8;$('labSlaDays').value=days;calcLabMaxDate()}
@@ -120,7 +120,7 @@ async function officialLabEntry(){try{const saved=await labService.officialEntry
 async function saveLabAnalyst(entryId){try{await labService.saveAnalyst(entryId,$(`labAnalyst_${entryId}`).value,{userId:'LOCAL_USER'});toast('Analista actualizado.');await loadLaboratory()}catch(e){toast(e.message||String(e),true)}}
 async function openLabHistory(sampleId){try{const rows=await labService.auditForSample(sampleId);const sample=allRows.find(x=>x.id===sampleId);$('historyTitle').textContent=`Historial Laboratorio · ${sample?.code||''}`;$('historyRows').innerHTML=rows.length?[...rows].reverse().map(x=>`<div class="timeline-row"><b>${esc(x.action)}</b><div>${esc(x.detail||'')}</div><div class="muted">${esc(new Date(x.at).toLocaleString('es-EC'))} · ${esc(x.userId)}</div></div>`).join(''):'<div class="empty">Sin historial de Laboratorio.</div>';$('historyModal').classList.add('show')}catch(e){toast(e.message||String(e),true)}}
 
-async function refresh(){
+async function refresh({syncDerived=true}={}){
   const token=performanceCoordinator.start('refresh:core');
   try{
     allRows=(await service.all()).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
@@ -130,14 +130,14 @@ async function refresh(){
       lastRegistered={client:s.clientId,branch:s.branch,matrixCatalogId:s.matrixCatalogId,samplingDate:s.samplingDate,receivedDate:s.receivedDate,monthFrequency:s.monthFrequency,observations:s.observations,requiresSpecialAnalysis:!!(s.workflow?.requirements?.dqo||s.workflow?.requirements?.surfactants)};
     }
     $('countAnalysis').textContent=queues.analysis.length;$('countWaiting').textContent=queues.waiting.length;$('countStopped').textContent=queues.stopped.length;$('countRegistry').textContent=queues.registry.length;if($('countMonitoring'))$('countMonitoring').textContent=allRows.length;
-    await loadCatalogs();renderStats();renderTables();await loadLaboratory();
+    await loadCatalogs();renderStats();renderTables();await loadLaboratory({syncDerived});
     await outboxRepository.cleanupConfirmed();
     const [pendingOutbox,audit,health]=await Promise.all([outboxRepository.pending(),auditRepository.all(),adapter.health()]);
     $('dbStatus').textContent='OK';$('sampleCount').textContent=allRows.length;$('outboxCount').textContent=pendingOutbox.length;$('auditCount').textContent=audit.length;$('cloudStatus').textContent=health.provider;$('deviceId').textContent=getDeviceId();if($('catalogClientsCount'))$('catalogClientsCount').textContent=clients.length;if($('catalogBranchesCount'))$('catalogBranchesCount').textContent=clients.reduce((n,c)=>n+(c.branches||[]).length,0);if($('catalogMatricesCount'))$('catalogMatricesCount').textContent=matrices.length;
     // V4.8.0-C: las vistas pesadas se refrescan en segundo plano y no bloquean el primer render.
     performanceCoordinator.scheduleIdle('refresh:secondary',async()=>{
       for(const [name,fn] of [
-        ['reports',()=>reportsUI.refresh()],['billing',()=>billingUI.refresh()],['receivables',()=>receivablesUI.refresh()],['tracking',()=>trackingUI.refresh()],['dashboard',()=>dashboardUI.refresh()]
+        ['reports',()=>reportsUI.refresh({syncDerived})],['billing',()=>billingUI.refresh({syncDerived})],['receivables',()=>receivablesUI.refresh({syncDerived})],['tracking',()=>trackingUI.refresh()],['dashboard',()=>dashboardUI.refresh()]
       ]){
         try{const t=performanceCoordinator.start(`module:${name}`);await fn();performanceCoordinator.end(t)}catch(e){console.warn(`Refresh diferido ${name}:`,e)}
       }
@@ -271,7 +271,7 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   await loginUI.init();await claimsRolesUI.init();await customClaimsManagerUI.init();await enterpriseUserManagerUI.init();dynamicPermissionUI.init();await firestoreRulesValidationUI.init();
   permissionEnforcement=new PermissionUIEnforcer({toast});permissionEnforcement.init();
 
-  liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh()}});
+  liveSyncManager=getLiveSyncManager(syncManager,{onRemoteApplied:async()=>{await refresh({syncDerived:false})}});
   await liveSyncManager.init({restore:false});
 
   // V5.0.0-A1.1 — Baseline & Outbox Reconciliation: después de Login/Claims y antes de Dashboard/Live Sync.
@@ -284,7 +284,7 @@ async function initializeAuthenticatedERP({alreadyInitialized=false}={}){
   globalSyncHealthUI=new GlobalSyncHealthUI(syncManager,{liveController:liveSyncManager});await globalSyncHealthUI.init();
   await outboxInspector.init();await conflictReviewCenter.init();
   syncFoundationUI.onBootstrap=async()=>{await refresh();if(securityManager.sessions.isAuthenticated())await liveSyncManager.activateAll({manual:false});await refresh()};
-  await financialSecurity.init();await refresh();clearForm();
+  await financialSecurity.init();await refresh({syncDerived:false});clearForm();
   // V5.0.0-A1.2 — New Client Live Sync Auto-Start Fix:
   // después de Login + reconciliación, una PC/navegador nuevo no debe depender
   // de preferencias antiguas de localStorage. Activa automáticamente todos los
@@ -314,7 +314,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V5.0.1 listo · Conflict Engine Refinement');
+    if(status.sessionUnlocked)toast('PEP V5.0.2 listo · Bootstrap/Outbox Idempotency Fix');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';
