@@ -18,3 +18,10 @@ No modifica Login, Claims, SessionManager, PermissionEngine ni módulos de negoc
 
 ## Regla de mantenimiento
 Toda nueva funcionalidad debe implementarse fuera del núcleo congelado. Si una mejora requiere tocar el motor de sincronización, primero debe existir un caso reproducible y una versión de corrección dedicada.
+
+## V5.0.1 — Conflict Engine Refinement
+- `history` queda excluido de la detección de conflictos.
+- Se excluyen metadatos técnicos de sincronización, auditoría y dispositivo.
+- Solo diferencias en campos de negocio generan un conflicto pendiente.
+- Los conflictos PENDING existentes que solo contienen metadata se resuelven automáticamente como `IGNORED_METADATA_ONLY` al abrir/actualizar Conflict Review Center.
+- Los conflictos reales de negocio continúan pendientes y conservan resolución manual / Smart Merge.

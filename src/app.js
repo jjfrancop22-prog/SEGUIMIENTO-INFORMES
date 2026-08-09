@@ -314,7 +314,7 @@ const startupManager=new StartupManager({
   onReady:async status=>{
     window.pepEnterpriseSessionGate=startupManager.sessionGate;
     window.pepStartupManager=startupManager;
-    if(status.sessionUnlocked)toast('PEP V5.0.0-STABLE listo · Multi-PC Enterprise');
+    if(status.sessionUnlocked)toast('PEP V5.0.1 listo · Conflict Engine Refinement');
   },
   onError:async error=>{
     if($('dbStatus'))$('dbStatus').textContent='ERROR';

@@ -7,10 +7,16 @@ import {getDeviceId} from '../core/device.js';
 import {eventBus} from '../core/event-bus.js';
 import {ENTITY_SYNC_SCHEMA_VERSION} from '../core/version-metadata.js';
 
-const META_FIELDS=new Set([
+// V5.0.1 — Conflict Engine Refinement
+// Los conflictos se deciden únicamente con campos de negocio. Historial, auditoría
+// y metadatos técnicos de sincronización nunca deben bloquear Live Sync.
+const NON_BUSINESS_FIELDS=new Set([
   'revision','updatedAt','updatedBy','deviceId','originDeviceId','createdAt','lastLocalChangeAt','lastSyncedAt',
-  'syncState','syncSchemaVersion','cloudUpdatedAt','cloudRevision','conflictSchemaVersion','deletedAt'
+  'syncState','syncSchemaVersion','cloudUpdatedAt','cloudRevision','conflictSchemaVersion','deletedAt',
+  'history','audit','auditTrail','syncMetadata','lastSync','lastSyncAt','lastSeen','lastSeenAt','syncHash',
+  '_cloudUpdatedAt','_cloudRevision','_sync','_syncMetadata'
 ]);
+export const isConflictBusinessField=key=>!NON_BUSINESS_FIELDS.has(String(key||''));
 const normalize=v=>{
   if(v===undefined)return '__undefined__';
   if(v===null||typeof v!=='object')return v;
@@ -18,8 +24,8 @@ const normalize=v=>{
   return Object.keys(v).sort().reduce((o,k)=>{o[k]=normalize(v[k]);return o},{});
 };
 const stable=v=>{try{return JSON.stringify(normalize(v))}catch{return String(v)}};
-const businessKeys=(...rows)=>new Set(rows.flatMap(row=>Object.keys(row||{})).filter(k=>!META_FIELDS.has(k)));
-function differingFields(a={},b={}){
+const businessKeys=(...rows)=>new Set(rows.flatMap(row=>Object.keys(row||{})).filter(isConflictBusinessField));
+export function differingBusinessFields(a={},b={}){
   return [...businessKeys(a,b)].filter(k=>stable(a?.[k])!==stable(b?.[k]));
 }
 function changedFromBase(base={},row={}){
@@ -32,10 +38,8 @@ export class ConflictResolutionManager{
     const rows=(await auditRepository.all())
       .filter(x=>String(x.domain||'').toUpperCase()===String(domain||'').toUpperCase()&&String(x.entityId||'')===String(entityId||''))
       .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
-    // La edición local que generó el Outbox conserva `before`: esa es la base común más fiable.
     const exact=rows.find(x=>x.before&&Number(x.after?.revision||0)===Number(localRevision||0)&&['UPDATE','CREATE'].includes(String(x.action||'').toUpperCase()));
     if(exact?.before)return exact.before;
-    // Fallback conservador: último snapshot remoto confirmado anterior a la edición local.
     const remote=rows.find(x=>x.after&&String(x.action||'').toUpperCase()==='SYNC_REMOTE_APPLY'&&Number(x.after?.revision||0)<Number(localRevision||0));
     return remote?.after||null;
   }
@@ -48,7 +52,10 @@ export class ConflictResolutionManager{
     const localDeviceId=String(local.deviceId||local.originDeviceId||pending.deviceId||'');
     const remoteDeviceId=String(remote.deviceId||remote.originDeviceId||'');
     if(localDeviceId&&remoteDeviceId&&localDeviceId===remoteDeviceId)return {conflict:null,autoMerge:null};
-    const fields=differingFields(local,remote);
+
+    // Punto clave V5.0.1: si la única diferencia es history/auditoría/sync metadata,
+    // el registro NO es un conflicto y la sincronización continúa normalmente.
+    const fields=differingBusinessFields(local,remote);
     if(!fields.length)return {conflict:null,autoMerge:null};
 
     const baseSnapshot=await this.findBaseSnapshot({domain,entityId:local.id||entityId,localRevision});
@@ -71,6 +78,23 @@ export class ConflictResolutionManager{
     for(const f of localChangedFields)merged[f]=local?.[f];
     return {conflict,autoMerge:{merged,baseSnapshot,localChangedFields,remoteChangedFields,overlappingFields}};
   }
+  async cleanupFalsePositiveConflicts(){
+    const pending=await conflictRepository.pending();
+    let resolved=0;
+    for(const row of pending){
+      const businessDiffs=differingBusinessFields(row.localSnapshot||{},row.remoteSnapshot||{});
+      if(businessDiffs.length){
+        // Corrige también registros antiguos cuyo differingFields incluía metadata junto con negocio.
+        const normalized=[...new Set(businessDiffs)].sort();
+        const current=[...new Set(row.differingFields||[])].sort();
+        if(stable(normalized)!==stable(current))await conflictRepository.updateDifferingFields(row.id,normalized);
+        continue;
+      }
+      await conflictRepository.markIgnoredMetadataOnly(row.id,{metadata:{source:'V5.0.1_CONFLICT_ENGINE_REFINEMENT'}});
+      resolved++;
+    }
+    return resolved;
+  }
   async resolveManual({conflictId,strategy,editedSnapshot=null}){
     const conflict=await conflictRepository.get(conflictId);
     if(!conflict)throw new Error('Conflicto no encontrado.');
@@ -90,7 +114,6 @@ export class ConflictResolutionManager{
     const now=new Date().toISOString(),deviceId=getDeviceId();
     const nextRevision=Math.max(Number(current.revision||0),Number(conflict.localRevision||0),Number(conflict.remoteRevision||0))+1;
     const resolved={...current,...selected,id:current.id,revision:nextRevision,updatedAt:now,updatedBy:'CONFLICT_MANUAL',deviceId,originDeviceId:current.originDeviceId||deviceId,lastLocalChangeAt:now,syncState:'LOCAL_DIRTY',syncSchemaVersion:current.syncSchemaVersion||ENTITY_SYNC_SCHEMA_VERSION};
-    // Nunca permitir que un editor cambie la identidad canónica.
     if(current.uuid)resolved.uuid=current.uuid;if(current.UUID)resolved.UUID=current.UUID;
     await put(repo.store,resolved);
     await outboxRepository.supersedeEntity(domain,current.id,'MANUAL_CONFLICT_SUPERSEDE');
@@ -101,7 +124,6 @@ export class ConflictResolutionManager{
     eventBus.emit('conflict:manual-applied',{conflict:row,entity:resolved});
     return {conflict:row,entity:resolved};
   }
-  // Compatibilidad con Foundation/Review Center.
   async observeIncoming(args){return (await this.analyzeIncoming(args)).conflict}
 }
 export const conflictResolutionManager=new ConflictResolutionManager();

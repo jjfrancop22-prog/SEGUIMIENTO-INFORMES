@@ -1,5 +1,5 @@
-export const APP_VERSION='V5.0.0-STABLE';
-export const APP_BUILD='MULTI_PC_ENTERPRISE_FROZEN_SYNC_CORE';
+export const APP_VERSION='V5.0.1';
+export const APP_BUILD='CONFLICT_ENGINE_REFINEMENT';
 export const SYNC_PROTOCOL_VERSION=1;
 export const ENTITY_SYNC_SCHEMA_VERSION=1;
 export const CONFLICT_SCHEMA_VERSION=2;
@@ -7,7 +7,7 @@ export const SECURITY_SCHEMA_VERSION=1;
 export const CLOUD_PROVIDER='FIREBASE_FIRESTORE';
 export const CLOUD_MODE='MULTI_PC_ENTERPRISE_FROZEN_SYNC_CORE_7_DOMAIN_LIVE_SYNC';
 export const APP_VERSION_LABEL=`PEP ${APP_VERSION}`;
-export const APP_BUILD_LABEL='Multi-PC Enterprise · Sync Core Frozen';
+export const APP_BUILD_LABEL='Multi-PC Enterprise · Conflict Engine Refinement';
 export const APP_RELEASED_AT='2026-08-08';
 export const SYNC_CORE_FROZEN=true;
 export const SYNC_CORE_FREEZE_BASE='V5.0.0-A1.2';

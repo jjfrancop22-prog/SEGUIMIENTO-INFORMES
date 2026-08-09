@@ -32,6 +32,24 @@ export class ConflictRepository{
   all(){return getAll(STORES.conflicts)}
   async pending(){return (await this.all()).filter(x=>String(x.status||'').toUpperCase()==='PENDING')}
   async pendingCount(){return (await this.pending()).length}
+
+  async updateDifferingFields(id,fields=[]){
+    const row=await get(STORES.conflicts,id);if(!row)return null;
+    row.differingFields=[...new Set(fields)].sort();row.updatedAt=new Date().toISOString();
+    await put(STORES.conflicts,row);return row;
+  }
+  async markIgnoredMetadataOnly(id,{metadata={}}={}){
+    const row=await get(STORES.conflicts,id);if(!row)return null;
+    if(String(row.status||'').toUpperCase()!=='PENDING')return row;
+    const now=new Date().toISOString();
+    row.status='RESOLVED';row.resolution='IGNORED_METADATA_ONLY';row.resolvedAt=now;row.updatedAt=now;
+    row.resolvedRevision=Math.max(Number(row.localRevision||0),Number(row.remoteRevision||0));
+    row.resolutionMetadata=metadata||{};row.differingFields=[];
+    await put(STORES.conflicts,row);
+    await auditRepository.record({action:'CONFLICT_FALSE_POSITIVE_IGNORED',domain:row.domain,entityId:row.entityId,entityType:row.entityType||'Unknown',userId:'CONFLICT_ENGINE',after:{conflictId:id,resolution:row.resolution,reason:'NON_BUSINESS_FIELDS_ONLY',metadata:row.resolutionMetadata}});
+    eventBus.emit('conflict:false-positive-resolved',{conflict:row});
+    return row;
+  }
   async markAutoMerged(id,{mergedSnapshot=null,mergedRevision=0,metadata={}}={}){
     const row=await get(STORES.conflicts,id);if(!row)return null;
     const now=new Date().toISOString();
