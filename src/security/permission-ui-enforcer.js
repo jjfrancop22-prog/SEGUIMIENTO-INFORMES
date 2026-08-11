@@ -19,6 +19,9 @@ function can(permission){return claimed()&&securityManager.authorize(permission)
 function any(perms=[]){return perms.some(can);}
 function allowsRule(rule){
   if(!rule)return false;
+  const role=String(session().role||'').trim().toUpperCase();
+  if(rule.denyRoles?.map(x=>String(x||'').trim().toUpperCase()).includes(role))return false;
+  if(rule.allowRoles?.length&&!rule.allowRoles.map(x=>String(x||'').trim().toUpperCase()).includes(role))return false;
   if(rule.read)return can(rule.read);
   if(rule.readAny?.length)return any(rule.readAny);
   return true;

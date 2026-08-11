@@ -5,13 +5,13 @@ const operationalRead=[P.SAMPLES_READ,P.LABORATORY_READ,P.REPORTS_READ,P.BILLING
 export const MODULE_PERMISSION_MANIFEST=Object.freeze({
   dashboard:{id:'dashboard',label:'Dashboard',readAny:operationalRead,write:null,views:{executiveDashboard:{label:'Dashboard Ejecutivo',readAny:operationalRead}}},
   monitoring:{id:'monitoring',label:'Monitoreo',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE,views:{
-    register:{label:'Nuevas Muestras',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE},
+    register:{label:'Nuevas Muestras',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE,denyRoles:['FACTURACION']},
     registry:{label:'Registro de Muestras',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE},
-    analysis:{label:'Registro de Análisis',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE},
-    waiting:{label:'En Espera',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE},
-    stopped:{label:'Detenidas',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE},
-    catalogs:{label:'Catálogos',readAny:[P.CLIENTS_READ,P.CATALOGS_READ],writeAny:[P.CLIENTS_WRITE,P.CATALOGS_WRITE]},
-    import:{label:'Importar Excel',read:P.SAMPLES_WRITE,write:P.SAMPLES_WRITE}
+    analysis:{label:'Registro de Análisis',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE,denyRoles:['FACTURACION']},
+    waiting:{label:'En Espera',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE,denyRoles:['FACTURACION']},
+    stopped:{label:'Detenidas',read:P.SAMPLES_READ,write:P.SAMPLES_WRITE,denyRoles:['FACTURACION']},
+    catalogs:{label:'Catálogos',readAny:[P.CLIENTS_READ,P.CATALOGS_READ],writeAny:[P.CLIENTS_WRITE,P.CATALOGS_WRITE],denyRoles:['FACTURACION']},
+    import:{label:'Importar Excel',read:P.SAMPLES_WRITE,write:P.SAMPLES_WRITE,denyRoles:['FACTURACION']}
   }},
   laboratory:{id:'laboratory',label:'Laboratorio',read:P.LABORATORY_READ,write:P.LABORATORY_WRITE,views:{laboratory:{label:'Ingreso y Workspace',read:P.LABORATORY_READ,write:P.LABORATORY_WRITE}}},
   reports:{id:'reports',label:'Informes',read:P.REPORTS_READ,write:P.REPORTS_WRITE,views:{
