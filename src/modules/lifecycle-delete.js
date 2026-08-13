@@ -1,5 +1,6 @@
 import {repositories} from '../data/repositories.js';
 import {eventBus} from '../core/event-bus.js';
+import {auditRepository} from '../data/audit-repository.js';
 
 const STAGE_ORDER={MONITORING:0,LABORATORY:1,REPORTS_PENDING:2,AUTHORIZATION:3,PORTAL:4,BILLING:5,RECEIVABLES:6};
 export const STAGE_LABELS={
@@ -60,7 +61,8 @@ class LifecycleDeleteService{
     }
     const {sample,lab,report,bill,recv}=check.state;
     const code=sample?.codeFull||`${sample?.code||''}${sample?.year?' · '+sample.year:''}`;
-    // Borrado coordinado de la etapa más avanzada hacia el origen.
+    await auditRepository.record({action:'QUALITY_LIFECYCLE_DELETE',domain:'SAMPLES',entityId:sampleId,entityType:'SAMPLE',userId,before:{sample,lab,report,bill,recv},metadata:{stage:requestedStage,stageLabel:this.label(requestedStage),policy:'QUALITY_PASSWORD_REQUIRED',traceabilityPreserved:true}});
+    // Borrado lógico coordinado de la etapa más avanzada hacia el origen. La auditoría nunca se elimina.
     if(recv)await repositories.receivables.softDelete(recv.id,{userId});
     if(bill)await repositories.billing.softDelete(bill.id,{userId});
     if(report)await repositories.reports.softDelete(report.id,{userId});

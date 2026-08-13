@@ -32,3 +32,10 @@ Toda nueva funcionalidad debe implementarse fuera del núcleo congelado. Si una 
 - Durante Bootstrap/reconciliación remota no se ejecutan reparaciones/ensure que creen Outbox de rebote.
 - Solo una acción local posterior vuelve a habilitar materialización derivada con Outbox normal.
 - Objetivo operativo: PC nueva → Bootstrap → Outbox 0; sesiones sin cambios → Outbox 0; cambios locales → pendientes → ACK → 0.
+
+
+## V5.0.2-A3 — Quality Protected Delete
+- Toda eliminación manual de muestras/códigos, clientes y matrices exige la contraseña CALIDAD.
+- Los usuarios continúan pudiendo editar según sus permisos, pero no eliminar sin autorización de Calidad.
+- Se conserva borrado lógico y auditoría/trazabilidad; no se elimina el histórico de auditoría.
+- Los intentos autorizados, denegados o cancelados quedan auditados sin almacenar la contraseña.

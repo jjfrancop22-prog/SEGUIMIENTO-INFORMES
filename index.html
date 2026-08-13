@@ -95,7 +95,7 @@ body.enterprise-locked>header,body.enterprise-locked>nav,body.enterprise-locked>
 
 .cloud-reconcile-rows{display:grid;gap:6px;margin:12px 0 4px;max-height:230px;overflow:auto}.cloud-reconcile-row{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 9px;border:1px solid #dce7e0;border-radius:9px;background:#f8fbf9;font-size:11px}.cloud-reconcile-row b{font-size:11px}.cloud-reconcile-row small{color:#66766c;text-align:right}.cloud-reconcile-icon{width:21px;height:21px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:900;background:#eaf0ec;color:#315442}.cloud-reconcile-icon.ok{background:#dff4e7;color:#067647}.cloud-reconcile-icon.warn{background:#fff0c7;color:#8a5b00}.cloud-reconcile-icon.run{background:#e8f0ff;color:#175cd3}
 
-/* V5.0.2-A1 · Registro de Muestras en modo consulta: ocultar acciones de escritura. */
+/* V5.0.2-A2 · Registro de Muestras en modo consulta + frecuencia visible. */
 #registry[data-permission-mode="read"] [data-edit],
 #registry[data-permission-mode="read"] [data-safe-delete-sample]{display:none!important}
 </style>
@@ -144,7 +144,7 @@ body.enterprise-locked>header,body.enterprise-locked>nav,body.enterprise-locked>
     <div class="newpc-bootstrap-actions"><button id="newPcBootstrapContinue" class="btn secondary" type="button" style="display:none">Continuar sin descargar</button><button id="newPcBootstrapRetry" class="btn primary" type="button" style="display:none">Reintentar</button></div>
   </div>
 </div>
-<header><div class="top"><div><h1>PEP — Gestión Integral de Muestras</h1><p>Local First · IndexedDB · Dominios separados · Workflow trazable</p></div><div style="display:flex;align-items:center;gap:9px"><div class="enterprise-user-bar"><div><b id="enterpriseHeaderUser">—</b><small><span id="enterpriseHeaderRole">—</span> · sesión <span id="enterpriseHeaderTimer">—</span></small></div><button id="pepInstallAppHeader" class="btn secondary" type="button" style="display:none">Instalar app</button><button id="enterpriseHeaderLogout" class="btn danger" type="button">Cerrar sesión</button></div><div class="version">V5.0.2</div></div></div></header>
+<header><div class="top"><div><h1>PEP — Gestión Integral de Muestras</h1><p>Local First · IndexedDB · Dominios separados · Workflow trazable</p></div><div style="display:flex;align-items:center;gap:9px"><div class="enterprise-user-bar"><div><b id="enterpriseHeaderUser">—</b><small><span id="enterpriseHeaderRole">—</span> · sesión <span id="enterpriseHeaderTimer">—</span></small></div><button id="pepInstallAppHeader" class="btn secondary" type="button" style="display:none">Instalar app</button><button id="enterpriseHeaderLogout" class="btn danger" type="button">Cerrar sesión</button></div><div class="version">V5.0.2-A3</div></div></div></header>
 <nav>
 <div class="module-tabs">
 <button class="module-tab active" data-module="dashboard">📊 DASHBOARD <span class="count" id="countDashboard">0</span></button>
